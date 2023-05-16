@@ -19,6 +19,7 @@ export NDK=~/Library/Android/sdk/ndk/25.2.9519653
 export TOOLCHAIN=$NDK/toolchains/llvm/prebuilt/darwin-x86_64
 export TARGET=aarch64-linux-android
 export API=28
+export ABI=arm64-v8a
 ```
 
 We need API 28 for the `glob` function.
@@ -38,6 +39,10 @@ make \
     LDCONFIG=$(pwd)/../fake-ldconfig.py
 make \
     DESTDIR=$INSTALL_PREFIX/ \
+    PKG_CONFIG=$(pwd)/../fake-pkg-config.py \
+    LDCONFIG=$(pwd)/../fake-ldconfig.py \
+    libdir_relative=lib \
+    prefix=. \
     install
 cd ..
 
@@ -52,13 +57,17 @@ make \
     LDCONFIG=$(pwd)/../fake-ldconfig.py
 make \
     DESTDIR=$INSTALL_PREFIX/ \
+    PKG_CONFIG=$(pwd)/../fake-pkg-config.py \
+    LDCONFIG=$(pwd)/../fake-ldconfig.py \
+    libdir_relative=lib \
+    prefix=. \
     install
 cd ..
 
 git clone https://github.com/facebook/zstd --branch v1.5.5 --depth 1
-cmake -B zstd/build-android -S zstd/build/cmake -DCMAKE_TOOLCHAIN_FILE=$NDK/build/cmake/android.toolchain.cmake -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=$API
+cmake -B zstd/build-android -S zstd/build/cmake -DCMAKE_TOOLCHAIN_FILE=$NDK/build/cmake/android.toolchain.cmake -DANDROID_ABI=$ABI -DANDROID_PLATFORM=$API
 cmake --build zstd/build-android --parallel
-cmake --install zstd/build-android --prefix $INSTALL_PREFIX/usr/local
+cmake --install zstd/build-android --prefix $INSTALL_PREFIX
 
 make \
     LPTHREAD='' \
@@ -71,5 +80,9 @@ make \
     LDCONFIG=$(pwd)/fake-ldconfig.py
 make \
     DESTDIR=$INSTALL_PREFIX/ \
+    PKG_CONFIG=$(pwd)/fake-pkg-config.py \
+    LDCONFIG=$(pwd)/fake-ldconfig.py \
+    libdir_relative=lib \
+    prefix=. \
     install
 ```

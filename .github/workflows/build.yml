@@ -1,0 +1,132 @@
+name: Build
+on: [push, pull_request]
+permissions: write-all
+
+jobs:
+  build:
+    # Skip building pull requests from the same repository
+    if: ${{ github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository) }}
+    runs-on: ubuntu-22.04
+    strategy:
+        fail-fast: false
+        matrix:
+            config:
+                - target: 'aarch64-linux-android'
+                  api: '28'
+                  abi: 'arm64-v8a'
+                - target: 'armv7a-linux-androideabi'
+                  api: '28'
+                  abi: 'armeabi-v7a'
+                - target: 'i686-linux-android'
+                  api: '28'
+                  abi: 'x86'
+                - target: 'x86_64-linux-android'
+                  api: '28'
+                  abi: 'x86_64'
+    steps:
+        - name: Checkout
+          uses: actions/checkout@v3
+
+        - uses: nttld/setup-ndk@8c3b609ff4d54576ea420551943fd34b4d03b0dc # v1.2.0
+          id: setup-ndk
+          with:
+            ndk-version: r25c # 25.2.9519653
+            add-to-path: false
+        
+        - name: Build
+          env:
+            NDK: ${{ steps.setup-ndk.outputs.ndk-path }}
+          run: |
+            export TOOLCHAIN=$NDK/toolchains/llvm/prebuilt/linux-x86_64
+            export TARGET=${{ matrix.config.target }}
+            export API=${{ matrix.config.api }}
+            export ABI=${{ matrix.config.abi }}
+
+            echo "NDK: $NDK"
+            
+            mkdir build_install
+            export INSTALL_PREFIX=$(pwd)/build_install
+
+            # Dependencies
+            git clone https://git.kernel.org/pub/scm/libs/libtrace/libtraceevent.git/ --branch libtraceevent-1.7.2 --depth 1
+            git clone https://git.kernel.org/pub/scm/libs/libtrace/libtracefs.git/ --branch libtracefs-1.6.4 --depth 1
+            git clone https://github.com/facebook/zstd --branch v1.5.5 --depth 1
+
+            # Build libtraceevent
+            cd libtraceevent
+            make \
+                CC=$TOOLCHAIN/bin/$TARGET$API-clang \
+                AR=$TOOLCHAIN/bin/llvm-ar \
+                NM=$TOOLCHAIN/bin/llvm-nm \
+                PKG_CONFIG=$(pwd)/../fake-pkg-config.py \
+                LDCONFIG=$(pwd)/../fake-ldconfig.py
+            make \
+                DESTDIR=$INSTALL_PREFIX/ \
+                PKG_CONFIG=$(pwd)/../fake-pkg-config.py \
+                LDCONFIG=$(pwd)/../fake-ldconfig.py \
+                libdir_relative=lib \
+                prefix=. \
+                install
+            cd ..
+
+            # Build libtracefs
+            cd libtracefs
+            make \
+                LPTHREAD='' \
+                CC=$TOOLCHAIN/bin/$TARGET$API-clang \
+                AR=$TOOLCHAIN/bin/llvm-ar \
+                NM=$TOOLCHAIN/bin/llvm-nm \
+                PKG_CONFIG=$(pwd)/../fake-pkg-config.py \
+                LDCONFIG=$(pwd)/../fake-ldconfig.py
+            make \
+                DESTDIR=$INSTALL_PREFIX/ \
+                PKG_CONFIG=$(pwd)/../fake-pkg-config.py \
+                LDCONFIG=$(pwd)/../fake-ldconfig.py \
+                libdir_relative=lib \
+                prefix=. \
+                install
+            cd ..
+
+            # Build zstd
+            cmake -B zstd/build-android -S zstd/build/cmake -DCMAKE_TOOLCHAIN_FILE=$NDK/build/cmake/android.toolchain.cmake -DANDROID_ABI=$ABI -DANDROID_PLATFORM=$API
+            cmake --build zstd/build-android --parallel
+            cmake --install zstd/build-android --prefix $INSTALL_PREFIX
+
+            # Build trace-cmd
+            make \
+                LPTHREAD='' \
+                LRT='' \
+                PKG_CONFIG=$(pwd)/fake-pkg-config.sh \
+                CC=$TOOLCHAIN/bin/$TARGET$API-clang \
+                AR=$TOOLCHAIN/bin/llvm-ar \
+                NM=$TOOLCHAIN/bin/llvm-nm \
+                PKG_CONFIG=$(pwd)/fake-pkg-config.py \
+                LDCONFIG=$(pwd)/fake-ldconfig.py
+            make \
+                DESTDIR=$INSTALL_PREFIX/ \
+                PKG_CONFIG=$(pwd)/fake-pkg-config.py \
+                LDCONFIG=$(pwd)/fake-ldconfig.py \
+                libdir_relative=lib \
+                prefix=. \
+                install
+
+        - name: Upload Artifacts
+          uses: actions/upload-artifact@v3
+          with:
+            name: trace-cmd-${{ matrix.config.abi }}
+            path: build_install/**
+
+        - name: Compress artifacts
+          uses: vimtor/action-zip@26a249fb00d43ca98dad77a4b3838025fc226aa1 # v1.1
+          if: ${{ startsWith(github.ref, 'refs/tags/') }}
+          with:
+            files: build_install/
+            dest: trace-cmd-${{ matrix.config.abi }}.zip
+
+        - name: Release
+          uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844 # v0.1.15
+          if: ${{ startsWith(github.ref, 'refs/tags/') }}
+          with:
+            files: trace-cmd-${{ matrix.config.abi }}.zip
+          env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

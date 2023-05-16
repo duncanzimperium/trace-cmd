@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import sys
 import logging
@@ -7,7 +7,7 @@ from pathlib import Path
 
 # Get the absolute path of the directory containing the script
 script_file = Path(__file__).absolute()
-prefix_dir = script_file.parent.joinpath("build_install")
+prefix_dir = script_file.parent.joinpath("build_install").resolve()
 
 # Create a logger
 logger = logging.getLogger(__name__)
@@ -34,22 +34,22 @@ logger.addHandler(file_handler)
 packages = {
     "libtraceevent": {
         "version": "1.7.2",
-        "cflags": f"-I{prefix_dir.joinpath('usr/local/include/traceevent')}",
-        "libs": f"-L{prefix_dir.joinpath('usr/local/lib64')} -ltraceevent",
+        "cflags": f"-I{prefix_dir.joinpath('include/traceevent')}",
+        "libs": f"-L{prefix_dir.joinpath('lib')} -ltraceevent",
     },
     "libtracefs": {
         "version": "1.6.4",
-        "cflags": f"-I{prefix_dir.joinpath('usr/local/include/tracefs')}",
-        "libs": f"-L{prefix_dir.joinpath('usr/local/lib64')} -ltracefs",
+        "cflags": f"-I{prefix_dir.joinpath('include/tracefs')}",
+        "libs": f"-L{prefix_dir.joinpath('lib')} -ltracefs",
     },
     "libzstd": {
         "version": "1.5.5",
-        "cflags": f"-I{prefix_dir.joinpath('usr/local/include')}",
-        "libs": f"-L{prefix_dir.joinpath('usr/local/lib')} -lzstd",
+        "cflags": f"-I{prefix_dir.joinpath('include')}",
+        "libs": f"-L{prefix_dir.joinpath('lib')} -lzstd",
     },
     "pkg-config": {
         "variables": {
-            "pc_path": f"{prefix_dir.joinpath('opt/homebrew/lib/pkgconfig')}:{prefix_dir.joinpath('usr/local/lib/pkgconfig')}",
+            "pc_path": f"lib/pkgconfig",
         },
     }
 }
@@ -86,6 +86,7 @@ def main():
     if result:
         logger.info(f"result: {result}")
         print(result)
+    sys.exit(0)
 
 if __name__ == "__main__":
     main()

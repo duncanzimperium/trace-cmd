@@ -64,7 +64,7 @@ do_compile =							\
 
 do_app_build =						\
 	($(print_app_build)				\
-	$(CC) $^ -rdynamic '-Wl,-rpath=$$ORIGIN' -o $@ $(LDFLAGS) $(CONFIG_LIBS) $(LIBS))
+	$(CC) $^ -rdynamic '-Wl,-rpath=$$ORIGIN/../lib' -o $@ $(LDFLAGS) $(CONFIG_LIBS) $(LIBS))
 
 do_build_static_lib =				\
 	($(print_static_lib_build)		\
@@ -72,7 +72,7 @@ do_build_static_lib =				\
 
 do_compile_shared_library =			\
 	($(print_shared_lib_compile)		\
-	$(CC) --shared $^ '-Wl,-soname,$(1),-rpath=$$ORIGIN' -o $@ $(LDFLAGS) $(LIBS))
+	$(CC) --shared $^ '-Wl,-soname,$(1),-rpath=$$ORIGIN/../lib' -o $@ $(LDFLAGS) $(LIBS))
 
 do_compile_plugin_obj =				\
 	($(print_plugin_obj_compile)		\
