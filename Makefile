@@ -330,6 +330,7 @@ ifeq ("$(TEST_LIBZSTD)", "y")
 LIBZSTD_CFLAGS := $(shell sh -c "$(PKG_CONFIG) --cflags libzstd")
 LIBZSTD_LDLAGS := $(shell sh -c "$(PKG_CONFIG) --libs libzstd")
 CFLAGS += -DHAVE_ZSTD
+INCLUDES += $(LIBZSTD_CFLAGS)
 ZSTD_INSTALLED=1
 $(info    Have ZSTD compression support)
 else

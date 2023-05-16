@@ -15,12 +15,26 @@
 #include <dirent.h>
 #include <errno.h>
 #include <pthread.h>
+#include <sched.h>
 
 #include "trace-cmd-private.h"
 #include "trace-cmd-local.h"
 #include "tracefs.h"
 #include "event-utils.h"
 #include "trace-tsync-local.h"
+
+// https://www.spinics.net/lists/linux-rt-users/msg16928.html
+static inline int pthread_getaffinity_np(pthread_t thread, size_t cpusetsize,
+                                         cpu_set_t *cpuset)
+{
+    return sched_getaffinity(0, cpusetsize, cpuset);
+}
+
+static inline int pthread_setaffinity_np(pthread_t thread, size_t cpusetsize,
+                                  const cpu_set_t *cpuset)
+{
+	return sched_setaffinity(0, cpusetsize, cpuset);
+}
 
 struct tsync_proto {
 	struct tsync_proto *next;

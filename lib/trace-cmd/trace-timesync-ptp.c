@@ -21,6 +21,12 @@
 #include "trace-msg.h"
 #include "trace-cmd-local.h"
 
+static inline __uint64_t
+__bswap_64 (__uint64_t __bsx)
+{
+  return __builtin_bswap64 (__bsx);
+}
+
 typedef __be32 be32;
 typedef __u64 u64;
 typedef __s64 s64;
